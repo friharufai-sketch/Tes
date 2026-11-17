@@ -1,278 +1,985 @@
-
+```html
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Food Catcher Game</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tangkap Makanan Sehat - Game Edukasi Seru</title>
+    <!-- Tailwind CSS untuk tata letak responsif dan komponen UI modern -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Fredoka & Nunito dari Google Fonts untuk kesan ceria dan ramah -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Pengaturan Font Utama & Pencegahan Scroll Layar Sentuh */
+        html, body {
+            font-family: 'Nunito', sans-serif;
+            touch-action: none; /* Mencegah layar HP ter-scroll atau zoom saat menggeser */
+            overscroll-behavior: none;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            background: linear-gradient(135deg, #A7F3D0 0%, #FEF08A 50%, #FDE68A 100%);
+        }
 
-<style>
-* {
-    box-sizing: border-box;
-}
+        h1, h2, .font-display {
+            font-family: 'Fredoka', sans-serif;
+        }
 
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(#87ceeb, #e0f7fa);
-    text-align: center;
-    overflow: hidden;
-}
+        /* Kanvas Game Responsif dengan Kursor Geser */
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 1.5rem;
+            background: linear-gradient(180deg, #E0F2FE 0%, #F0FDF4 75%, #DCFCE7 100%);
+            box-shadow: inset 0 4px 15px rgba(0, 0, 0, 0.06);
+            cursor: grab;
+            touch-action: none;
+        }
 
-h2 {
-    color: #333;
-    margin: 12px;
-}
+        #gameCanvas:active {
+            cursor: grabbing;
+        }
 
-#info {
-    display: flex;
-    justify-content: space-around;
-    font-size: 18px;
-    font-weight: bold;
-    padding: 10px;
-}
+        /* Animasi melayang untuk ikon layar awal */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+        .animate-float {
+            animation: float 2.5s ease-in-out infinite;
+        }
 
-#game {
-    position: relative;
-    width: 100%;
-    max-width: 500px;
-    height: 75vh;
-    min-height: 350px;
-    margin: auto;
-    background: linear-gradient(#b3e5fc, #e1f5fe);
-    border: 4px solid white;
-    border-radius: 15px;
-    overflow: hidden;
-}
+        /* Animasi pop saat muncul modal */
+        @keyframes popIn {
+            0% { transform: scale(0.85); opacity: 0; }
+            70% { transform: scale(1.04); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: popIn 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
 
-#player {
-    position: absolute;
-    bottom: 15px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 65px;
-    width: 75px;
-    text-align: center;
-}
+        /* Animasi getar layar saat salah makan kentang goreng / junk food */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px) rotate(-1deg); }
+            40% { transform: translateX(8px) rotate(1deg); }
+            60% { transform: translateX(-6px); }
+            80% { transform: translateX(6px); }
+        }
+        .animate-shake {
+            animation: shake 0.4s ease-in-out;
+        }
 
-.food {
-    position: absolute;
-    top: -50px;
-    font-size: 35px;
-}
-
-#controls {
-    margin: 15px;
-}
-
-button {
-    padding: 14px 30px;
-    margin: 5px;
-    border: none;
-    border-radius: 12px;
-    background: #ff9800;
-    color: white;
-    font-size: 22px;
-    cursor: pointer;
-}
-
-button:active {
-    background: #e65100;
-}
-
-#startScreen {
-    position: absolute;
-    inset: 0;
-    background: rgba(0,0,0,0.75);
-    color: white;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-}
-
-#startScreen button {
-    background: #4caf50;
-}
-
-</style>
+        /* Gaya Tombol 3D Ceria */
+        .btn-3d {
+            transition: all 0.1s ease;
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
+        }
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+        }
+    </style>
 </head>
+<body class="h-screen w-screen flex flex-col items-center justify-center p-2 sm:p-4">
 
-<body>
+    <!-- Kontainer Utama Game -->
+    <div id="gameContainer" class="relative w-full max-w-2xl h-full max-h-[860px] bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border-4 border-white flex flex-col overflow-hidden p-3 sm:p-4">
+        
+        <!-- Header / HUD: Skor, Rekor, Level, Nyawa & Tombol Suara -->
+        <header class="flex flex-col gap-2 mb-2 z-10">
+            <div class="flex items-center justify-between bg-emerald-50 border-2 border-emerald-200 rounded-2xl px-3 py-2 shadow-sm">
+                <!-- Skor & Rekor -->
+                <div class="flex items-center gap-3 sm:gap-4">
+                    <div class="flex items-center gap-2">
+                        <div class="bg-emerald-500 text-white p-1.5 rounded-xl shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-[10px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wider leading-none">Skor</p>
+                            <p id="scoreDisplay" class="font-display text-xl sm:text-2xl font-bold text-emerald-950 leading-tight">0</p>
+                        </div>
+                    </div>
 
-<h2>🍔 FOOD CATCHER 🍕</h2>
+                    <div class="h-7 w-[2px] bg-emerald-200"></div>
 
-<div id="info">
-    <span>⭐ Skor: <span id="score">0</span></span>
-    <span>❤️ Nyawa: <span id="lives">3</span></span>
-</div>
+                    <div>
+                        <p class="text-[10px] sm:text-xs font-bold text-amber-700 uppercase tracking-wider leading-none">Rekor</p>
+                        <p id="hudHighScoreDisplay" class="font-display text-base sm:text-lg font-bold text-amber-600 leading-tight">0</p>
+                    </div>
+                </div>
 
-<div id="game">
+                <!-- Level Kecepatan -->
+                <div class="flex items-center gap-1.5 bg-white px-2.5 sm:px-3 py-1 rounded-xl border border-emerald-200 shadow-inner">
+                    <span class="text-sm sm:text-base">⚡</span>
+                    <span id="levelDisplay" class="font-display text-sm sm:text-base font-bold text-slate-700">Level 1</span>
+                </div>
 
-    <div id="startScreen">
-        <h1>🍟 Food Catcher!</h1>
-        <p>Tangkap makanan sebanyak mungkin!</p>
-        <button onclick="startGame()">MULAI GAME</button>
+                <!-- Nyawa & Tombol Mute -->
+                <div class="flex items-center gap-2">
+                    <div id="livesDisplay" class="flex items-center text-base sm:text-xl tracking-tighter" title="Nyawa Tersisa">
+                        ❤️❤️❤️
+                    </div>
+                    <button id="soundToggleBtn" class="p-2 bg-white hover:bg-emerald-100 rounded-xl border border-emerald-200 text-emerald-700 transition cursor-pointer" title="Suara On/Off">
+                        🔊
+                    </button>
+                </div>
+            </div>
+
+            <!-- Banner Panduan Ringkas Sehat vs Junk Food -->
+            <div class="flex items-center justify-between bg-white/95 border border-slate-200 rounded-xl px-3 py-1.5 text-xs sm:text-sm shadow-sm">
+                <div class="flex items-center gap-1.5 text-emerald-700 font-bold">
+                    <span>✅ Sehat (+10):</span>
+                    <span class="tracking-wide text-base">🍎🐟🥦🥕🍌</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-rose-600 font-bold">
+                    <span>❌ Hindari (-10):</span>
+                    <span class="tracking-wide text-base">🍟🍔🍕🍩</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Area Kanvas Permainan (Full Height tanpa tombol klik bawah) -->
+        <main class="relative flex-1 w-full rounded-3xl overflow-hidden border-2 border-emerald-200/90 shadow-inner">
+            <canvas id="gameCanvas"></canvas>
+
+            <!-- Layar Mulai (Start Overlay) -->
+            <div id="startScreen" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center p-4 sm:p-6 text-center z-20">
+                <div class="bg-white rounded-3xl p-5 sm:p-7 max-w-md w-full shadow-2xl border-4 border-emerald-300 animate-pop">
+                    <div class="text-4xl sm:text-5xl mb-2 animate-float">🍎🐟🥦😋</div>
+                    <h1 class="font-display text-2xl sm:text-3xl font-bold text-slate-800 mb-1.5">Tangkap Makanan Sehat</h1>
+                    <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">
+                        <strong>Geser layar ke kanan & kiri</strong> untuk memakan makanan sehat, dan hindari <strong>kentang goreng</strong> beserta <em>junk food</em> lainnya!
+                    </p>
+                    
+                    <!-- Panduan Makanan Sehat vs Tidak Sehat -->
+                    <div class="grid grid-cols-1 gap-2.5 mb-5 text-left text-xs sm:text-sm">
+                        <div class="bg-emerald-50 rounded-2xl p-3 border border-emerald-200">
+                            <p class="font-extrabold text-emerald-800 mb-1 flex items-center justify-between">
+                                <span>✅ Makanan Sehat (Tangkap!)</span>
+                                <span class="bg-emerald-500 text-white text-[11px] px-2 py-0.5 rounded-full">+10 Poin</span>
+                            </p>
+                            <p class="text-emerald-700 text-xs leading-relaxed">
+                                🍎 Apel, 🐟 Ikan, 🥦 Brokoli, 🥕 Wortel, 🍌 Pisang, 🍉 Semangka, 🥑 Alpukat
+                            </p>
+                        </div>
+
+                        <div class="bg-rose-50 rounded-2xl p-3 border border-rose-200">
+                            <p class="font-extrabold text-rose-800 mb-1 flex items-center justify-between">
+                                <span>❌ Tidak Sehat (Hindari!)</span>
+                                <span class="bg-rose-500 text-white text-[11px] px-2 py-0.5 rounded-full">-10 & -1 ❤️</span>
+                            </p>
+                            <p class="text-rose-700 text-xs leading-relaxed">
+                                🍟 <strong>Kentang Goreng (French Fries)</strong>, 🍔 Burger, 🍕 Pizza, 🍩 Donat, 🥤 Soda, 🍬 Permen
+                            </p>
+                        </div>
+                    </div>
+
+                    <button id="startBtn" class="btn-3d w-full py-3.5 px-6 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-display text-xl font-bold rounded-2xl cursor-pointer">
+                        Mulai Main! 🚀
+                    </button>
+                </div>
+            </div>
+
+            <!-- Layar Game Over (Restart Overlay) -->
+            <div id="gameOverScreen" class="hidden absolute inset-0 bg-slate-900/70 backdrop-blur-sm flex flex-col items-center justify-center p-5 text-center z-20">
+                <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border-4 border-rose-300 animate-pop">
+                    <div id="gameOverEmoji" class="text-5xl sm:text-6xl mb-2">🤢</div>
+                    <h2 class="font-display text-3xl font-bold text-slate-800 mb-1">Permainan Selesai!</h2>
+                    <p id="gameOverReason" class="text-slate-600 text-sm mb-5 leading-relaxed">Terlalu banyak memakan makanan tidak sehat!</p>
+                    
+                    <div class="grid grid-cols-2 gap-3 mb-6">
+                        <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-3">
+                            <p class="text-xs font-bold text-emerald-700 uppercase">Skor Akhir</p>
+                            <p id="finalScoreDisplay" class="font-display text-3xl font-bold text-emerald-600">0</p>
+                        </div>
+                        <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3">
+                            <p class="text-xs font-bold text-amber-700 uppercase">Skor Tertinggi</p>
+                            <p id="highScoreDisplay" class="font-display text-3xl font-bold text-amber-600">0</p>
+                        </div>
+                    </div>
+
+                    <button id="restartBtn" class="btn-3d w-full py-3.5 px-6 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white font-display text-xl font-bold rounded-2xl cursor-pointer">
+                        Main Lagi 🔄
+                    </button>
+                </div>
+            </div>
+        </main>
     </div>
 
-    <div id="player">🧑</div>
+    <script>
+        /**
+         * GAME: TANGKAP MAKANAN SEHAT (KONTROL GESER MURNI)
+         * - Kontrol utama: Geser (drag/swipe) di mana saja pada area kanvas.
+         * - Makanan Sehat (+10): Apel, Ikan, Brokoli, Wortel, Pisang, Semangka, Alpukat.
+         * - Makanan Tidak Sehat (-10 & -1 nyawa): Kentang Goreng (jebakan utama), Burger, Pizza, Donat, Soda, Permen.
+         */
 
-</div>
+        // --- 1. DAFTAR MAKANAN SEHAT & TIDAK SEHAT ---
+        const HEALTHY_FOODS = [
+            { id: 'apple', name: 'Apel', emoji: '🍎', healthy: true },
+            { id: 'fish', name: 'Ikan', emoji: '🐟', healthy: true },
+            { id: 'broccoli', name: 'Sayur Brokoli', emoji: '🥦', healthy: true },
+            { id: 'carrot', name: 'Wortel', emoji: '🥕', healthy: true },
+            { id: 'banana', name: 'Pisang', emoji: '🍌', healthy: true },
+            { id: 'watermelon', name: 'Semangka', emoji: '🍉', healthy: true },
+            { id: 'avocado', name: 'Alpukat', emoji: '🥑', healthy: true }
+        ];
 
-<div id="controls">
-    <button id="left">⬅️</button>
-    <button id="right">➡️</button>
-</div>
+        const UNHEALTHY_FOODS = [
+            { id: 'fries', name: 'Kentang Goreng', emoji: '🍟', healthy: false, weight: 3 }, // Jebakan utama (muncul lebih sering)
+            { id: 'burger', name: 'Burger', emoji: '🍔', healthy: false, weight: 1 },
+            { id: 'pizza', name: 'Pizza', emoji: '🍕', healthy: false, weight: 1 },
+            { id: 'donut', name: 'Donat', emoji: '🍩', healthy: false, weight: 1 },
+            { id: 'soda', name: 'Minuman Soda', emoji: '🥤', healthy: false, weight: 1 },
+            { id: 'candy', name: 'Permen', emoji: '🍬', healthy: false, weight: 1 }
+        ];
 
-<script>
-const game = document.getElementById("game");
-const player = document.getElementById("player");
-const scoreText = document.getElementById("score");
-const livesText = document.getElementById("lives");
-const startScreen = document.getElementById("startScreen");
+        // Pool berbobot agar Kentang Goreng 🍟 lebih sering muncul
+        const WEIGHTED_UNHEALTHY_POOL = [];
+        UNHEALTHY_FOODS.forEach(item => {
+            for (let i = 0; i < (item.weight || 1); i++) {
+                WEIGHTED_UNHEALTHY_POOL.push(item);
+            }
+        });
 
-const foods = ["🍎","🍔","🍕","🍟","🍉","🍌",
-               "🍇","🍩","🍪","🥕","🍗","🍓"];
+        // --- 2. REFERENSI ELEMEN DOM ---
+        const gameContainer = document.getElementById('gameContainer');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const hudHighScoreDisplay = document.getElementById('hudHighScoreDisplay');
+        const levelDisplay = document.getElementById('levelDisplay');
+        const livesDisplay = document.getElementById('livesDisplay');
+        
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const gameOverEmoji = document.getElementById('gameOverEmoji');
+        const gameOverReason = document.getElementById('gameOverReason');
+        const finalScoreDisplay = document.getElementById('finalScoreDisplay');
+        const highScoreDisplay = document.getElementById('highScoreDisplay');
+        
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const soundToggleBtn = document.getElementById('soundToggleBtn');
 
-let playerX = 0;
-let score = 0;
-let lives = 3;
-let speed = 3;
-let running = false;
-let foodList = [];
-let spawnTimer;
-let animation;
+        // --- 3. SISTEM EFEK SUARA SINTETIS (WEB AUDIO API MURNI) ---
+        let soundEnabled = true;
+        let audioCtx = null;
 
-function updatePlayer() {
-    const max = game.clientWidth - player.offsetWidth;
-    playerX = Math.max(0, Math.min(playerX, max));
-    player.style.left = playerX + "px";
-    player.style.transform = "none";
-}
-
-function move(direction) {
-    if (!running) return;
-    playerX += direction * 30;
-    updatePlayer();
-}
-
-document.getElementById("left").addEventListener("pointerdown", e => {
-    e.preventDefault();
-    move(-1);
-});
-
-document.getElementById("right").addEventListener("pointerdown", e => {
-    e.preventDefault();
-    move(1);
-});
-
-document.addEventListener("keydown", e => {
-    if (e.key === "ArrowLeft" || e.key === "a") move(-1);
-    if (e.key === "ArrowRight" || e.key === "d") move(1);
-});
-
-function createFood() {
-    if (!running) return;
-
-    const food = document.createElement("div");
-    food.className = "food";
-    food.textContent = foods[Math.floor(Math.random() * foods.length)];
-
-    const max = game.clientWidth - 40;
-    const x = Math.random() * max;
-
-    food.style.left = x + "px";
-    game.appendChild(food);
-
-    foodList.push({
-        element: food,
-        x: x,
-        y: -45
-    });
-}
-
-function gameLoop() {
-    if (!running) return;
-
-    const playerRect = player.getBoundingClientRect();
-
-    foodList.forEach((food, index) => {
-        food.y += speed;
-        food.element.style.top = food.y + "px";
-
-        const foodRect = food.element.getBoundingClientRect();
-
-        // Makanan tertangkap
-        if (
-            foodRect.bottom >= playerRect.top + 10 &&
-            foodRect.left < playerRect.right &&
-            foodRect.right > playerRect.left &&
-            foodRect.top < playerRect.bottom
-        ) {
-            score += 10;
-            scoreText.textContent = score;
-
-            food.element.remove();
-            foodList.splice(index, 1);
-
-            speed = 3 + Math.floor(score / 100) * 0.5;
-            return;
-        }
-
-        // Makanan terlewat
-        if (food.y > game.clientHeight) {
-            lives--;
-            livesText.textContent = lives;
-
-            food.element.remove();
-            foodList.splice(index, 1);
-
-            if (lives <= 0) {
-                endGame();
+        function ensureAudioContext() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    audioCtx = new AudioContextClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
             }
         }
-    });
 
-    animation = requestAnimationFrame(gameLoop);
-}
+        function playTone(freq, type, startTime, duration, volume = 0.14) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, startTime);
+            
+            gain.gain.setValueAtTime(volume, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        }
 
-function startGame() {
-    score = 0;
-    lives = 3;
-    speed = 3;
-    playerX = (game.clientWidth - player.offsetWidth) / 2;
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                ensureAudioContext();
+                if (!audioCtx) return;
+                const now = audioCtx.currentTime;
 
-    scoreText.textContent = score;
-    livesText.textContent = lives;
+                if (type === 'healthy') {
+                    // Nada ceria naik (C5 - E5 - G5)
+                    playTone(523.25, 'sine', now, 0.12, 0.15);
+                    playTone(659.25, 'sine', now + 0.06, 0.12, 0.15);
+                    playTone(783.99, 'triangle', now + 0.12, 0.22, 0.16);
+                } else if (type === 'junk') {
+                    // Nada peringatan rendah bergetar saat memakan kentang goreng / junk food
+                    playTone(185.00, 'sawtooth', now, 0.15, 0.14);
+                    playTone(138.59, 'sawtooth', now + 0.10, 0.25, 0.14);
+                } else if (type === 'gameover') {
+                    // Nada sedih turun saat game over
+                    playTone(392.00, 'triangle', now, 0.18, 0.16);
+                    playTone(349.23, 'triangle', now + 0.18, 0.18, 0.16);
+                    playTone(311.13, 'triangle', now + 0.36, 0.18, 0.16);
+                    playTone(261.63, 'sawtooth', now + 0.54, 0.45, 0.14);
+                }
+            } catch (e) {
+                // Abaikan jika browser memblokir audio otomatis
+            }
+        }
 
-    foodList.forEach(f => f.element.remove());
-    foodList = [];
+        soundToggleBtn.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            soundToggleBtn.textContent = soundEnabled ? '🔊' : '🔇';
+        });
 
-    updatePlayer();
+        // --- 4. VARIABEL STATUS PERMAINAN ---
+        let gameState = 'MENU'; // 'MENU', 'PLAYING', 'GAMEOVER'
+        let score = 0;
+        let highScore = parseInt(localStorage.getItem('tangkapMakananSehatHighScore')) || 0;
+        let lives = 3;
+        let level = 1;
+        
+        let fallingFoods = [];
+        let floatingTexts = [];
+        let particles = [];
+        let clouds = [];
+        
+        let lastTime = 0;
+        let spawnTimer = 0;
+        let animationFrameId = null;
 
-    startScreen.style.display = "none";
-    running = true;
+        // Indikator visual petunjuk geser di awal permainan
+        let swipeHintAlpha = 1.0;
+        let hasUserSwiped = false;
 
-    spawnTimer = setInterval(createFood, 900);
-    gameLoop();
-}
+        // --- 5. OBJEK KARAKTER PEMAIN ---
+        const player = {
+            x: 0,
+            targetX: 0,
+            y: 0,
+            width: 78,
+            height: 88,
+            speed: 560, // Kecepatan keyboard opsional
+            vx: 0,
+            expressionTimer: 0,
+            expression: 'happy' // 'happy', 'yum', 'sick'
+        };
 
-function endGame() {
-    running = false;
+        const keys = {
+            left: false,
+            right: false
+        };
 
-    clearInterval(spawnTimer);
-    cancelAnimationFrame(animation);
+        // --- 6. PENYESUAIAN UKURAN KANVAS RESPONSIF ---
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            
+            player.y = canvas.height - player.height - 22;
+            if (player.x === 0 && player.targetX === 0) {
+                player.x = (canvas.width - player.width) / 2;
+                player.targetX = player.x;
+            } else {
+                player.x = Math.max(4, Math.min(canvas.width - player.width - 4, player.x));
+                player.targetX = Math.max(4, Math.min(canvas.width - player.width - 4, player.targetX));
+            }
+        }
 
-    startScreen.style.display = "flex";
-    startScreen.innerHTML = `
-        <h1>GAME OVER!</h1>
-        <h2>⭐ Skor kamu: ${score}</h2>
-        <p>Hebat! Coba pecahkan rekor kamu!</p>
-        <button onclick="startGame()">MAIN LAGI</button>
-    `;
-}
-</script>
+        window.addEventListener('resize', resizeCanvas);
 
+        // --- 7. LOGIKA SPAWN MAKANAN & EFEK VISUAL ---
+        function spawnFood() {
+            const isHealthy = Math.random() < 0.55;
+            let foodData;
+            
+            if (isHealthy) {
+                foodData = HEALTHY_FOODS[Math.floor(Math.random() * HEALTHY_FOODS.length)];
+            } else {
+                foodData = WEIGHTED_UNHEALTHY_POOL[Math.floor(Math.random() * WEIGHTED_UNHEALTHY_POOL.length)];
+            }
+
+            const size = Math.min(48, Math.max(36, canvas.width * 0.085));
+            const margin = size;
+            const x = margin + Math.random() * (canvas.width - margin * 2);
+            
+            const speedMultiplier = 1 + (level - 1) * 0.16;
+            const baseSpeed = 165 + Math.random() * 85;
+
+            fallingFoods.push({
+                ...foodData,
+                x: x,
+                y: -size,
+                size: size,
+                speed: baseSpeed * speedMultiplier,
+                rotation: (Math.random() - 0.5) * 0.4,
+                rotSpeed: (Math.random() - 0.5) * 2.2
+            });
+        }
+
+        function addFloatingText(text, x, y, color) {
+            floatingTexts.push({
+                text,
+                x,
+                y,
+                color,
+                alpha: 1,
+                vy: -75
+            });
+        }
+
+        function spawnParticles(x, y, color) {
+            for (let i = 0; i < 12; i++) {
+                const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.3;
+                const speed = 65 + Math.random() * 95;
+                particles.push({
+                    x,
+                    y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 4 + Math.random() * 3,
+                    color,
+                    alpha: 1
+                });
+            }
+        }
+
+        function triggerScreenShake() {
+            gameContainer.classList.remove('animate-shake');
+            void gameContainer.offsetWidth;
+            gameContainer.classList.add('animate-shake');
+        }
+
+        function initClouds() {
+            clouds = [
+                { x: canvas.width * 0.18, y: 45, scale: 0.9, speed: 12 },
+                { x: canvas.width * 0.65, y: 90, scale: 1.1, speed: 8 },
+                { x: canvas.width * 0.85, y: 35, scale: 0.75, speed: 15 }
+            ];
+        }
+
+        // --- 8. MEMULAI & MENGAKHIRI PERMAINAN ---
+        function startGame() {
+            ensureAudioContext();
+
+            resizeCanvas();
+            score = 0;
+            lives = 3;
+            level = 1;
+            fallingFoods = [];
+            floatingTexts = [];
+            particles = [];
+            spawnTimer = 0;
+
+            player.x = (canvas.width - player.width) / 2;
+            player.targetX = player.x;
+            player.vx = 0;
+            player.expression = 'happy';
+            player.expressionTimer = 0;
+
+            // Reset petunjuk visual geser di awal permainan
+            hasUserSwiped = false;
+            swipeHintAlpha = 1.0;
+
+            updateHUD();
+            initClouds();
+
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            gameState = 'PLAYING';
+
+            lastTime = performance.now();
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function endGame(lastJunkFoodName) {
+            gameState = 'GAMEOVER';
+            isPointerDown = false;
+            playSound('gameover');
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('tangkapMakananSehatHighScore', highScore);
+            }
+
+            gameOverEmoji.textContent = score >= 100 ? '🏆' : '🤢';
+            gameOverReason.innerHTML = `Yah! Kamu memakan <strong>${lastJunkFoodName}</strong> dan kehabisan nyawa. Ingat untuk selalu memilih makanan sehat ya!`;
+            finalScoreDisplay.textContent = score;
+            highScoreDisplay.textContent = highScore;
+            hudHighScoreDisplay.textContent = highScore;
+
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        function updateHUD() {
+            scoreDisplay.textContent = score;
+            hudHighScoreDisplay.textContent = Math.max(score, highScore);
+            
+            const newLevel = Math.floor(score / 50) + 1;
+            if (newLevel !== level) {
+                level = newLevel;
+            }
+            levelDisplay.textContent = `Level ${level}`;
+
+            const fullHearts = '❤️'.repeat(Math.max(0, lives));
+            const emptyHearts = '🖤'.repeat(Math.max(0, 3 - lives));
+            livesDisplay.textContent = fullHearts + emptyHearts;
+        }
+
+        // --- 9. UPDATE LOGIKA PER FRAME ---
+        function update(dt) {
+            if (gameState !== 'PLAYING') return;
+
+            // Update Awan
+            clouds.forEach(c => {
+                c.x += c.speed * dt;
+                if (c.x > canvas.width + 80) c.x = -80;
+            });
+
+            // Hilangkan petunjuk panah geser secara halus setelah pemain mulai menggeser
+            if (hasUserSwiped && swipeHintAlpha > 0) {
+                swipeHintAlpha = Math.max(0, swipeHintAlpha - dt * 2.5);
+            }
+
+            // Dukungan keyboard opsional (jika pengguna memakai laptop)
+            if (keys.left && !keys.right) {
+                player.targetX -= player.speed * dt;
+                hasUserSwiped = true;
+            } else if (keys.right && !keys.left) {
+                player.targetX += player.speed * dt;
+                hasUserSwiped = true;
+            }
+
+            // Batasi targetX di dalam area kanvas
+            player.targetX = Math.max(4, Math.min(canvas.width - player.width - 4, player.targetX));
+
+            // Interpolasi halus menuju targetX (responsif tinggi namun super mulus)
+            const prevX = player.x;
+            const lerpFactor = 1 - Math.exp(-38 * dt);
+            player.x += (player.targetX - player.x) * lerpFactor;
+            player.vx = (player.x - prevX) / Math.max(0.001, dt);
+
+            // Timer Ekspresi Wajah
+            if (player.expressionTimer > 0) {
+                player.expressionTimer -= dt;
+                if (player.expressionTimer <= 0) {
+                    player.expression = 'happy';
+                }
+            }
+
+            // Spawn Makanan Baru
+            spawnTimer += dt;
+            const spawnInterval = Math.max(0.45, 0.95 - (level - 1) * 0.08);
+            if (spawnTimer >= spawnInterval) {
+                spawnTimer = 0;
+                spawnFood();
+            }
+
+            // Area tangkapan mulut/kepala karakter
+            const catchBox = {
+                left: player.x + 10,
+                right: player.x + player.width - 10,
+                top: player.y + 8,
+                bottom: player.y + player.height - 14
+            };
+
+            // Update Makanan Jatuh & Deteksi Tabrakan
+            for (let i = fallingFoods.length - 1; i >= 0; i--) {
+                const f = fallingFoods[i];
+                f.y += f.speed * dt;
+                f.rotation += f.rotSpeed * dt;
+
+                const foodRadius = f.size * 0.42;
+                const hit = (
+                    f.x + foodRadius > catchBox.left &&
+                    f.x - foodRadius < catchBox.right &&
+                    f.y + foodRadius > catchBox.top &&
+                    f.y - foodRadius < catchBox.bottom
+                );
+
+                if (hit) {
+                    if (f.healthy) {
+                        score += 10;
+                        playSound('healthy');
+                        player.expression = 'yum';
+                        player.expressionTimer = 0.45;
+                        addFloatingText(`+10 ${f.name}! 😋`, f.x, f.y - 16, '#059669');
+                        spawnParticles(f.x, f.y, '#10B981');
+                    } else {
+                        score = Math.max(0, score - 10);
+                        lives--;
+                        playSound('junk');
+                        triggerScreenShake();
+                        player.expression = 'sick';
+                        player.expressionTimer = 0.65;
+                        addFloatingText(`-10! Hindari ${f.name} 🤢`, f.x, f.y - 16, '#E11D48');
+                        spawnParticles(f.x, f.y, '#F43F5E');
+
+                        if (lives <= 0) {
+                            updateHUD();
+                            fallingFoods.splice(i, 1);
+                            endGame(f.name);
+                            return;
+                        }
+                    }
+
+                    updateHUD();
+                    fallingFoods.splice(i, 1);
+                    continue;
+                }
+
+                if (f.y - f.size > canvas.height) {
+                    fallingFoods.splice(i, 1);
+                }
+            }
+
+            // Update Teks Melayang
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.y += ft.vy * dt;
+                ft.alpha -= dt * 1.25;
+                if (ft.alpha <= 0) {
+                    floatingTexts.splice(i, 1);
+                }
+            }
+
+            // Update Partikel
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.alpha -= dt * 2.2;
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        // --- 10. RENDER GAMBAR PADA KANVAS ---
+        function drawCloud(x, y, scale) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 22, 0, Math.PI * 2);
+            ctx.arc(20, -6, 26, 0, Math.PI * 2);
+            ctx.arc(42, 0, 20, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawSwipeHint() {
+            if (swipeHintAlpha <= 0.01) return;
+
+            const cx = player.x + player.width / 2;
+            const cy = player.y + player.height + 10;
+            const pulseOffset = Math.sin(performance.now() / 180) * 8;
+
+            ctx.save();
+            ctx.globalAlpha = swipeHintAlpha * 0.9;
+
+            // Panah Kiri & Kanan halus di bawah karakter
+            ctx.fillStyle = '#047857';
+            ctx.font = '800 13px Nunito, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Ikon panah kiri berdenyut
+            ctx.fillText('◀', cx - 54 - pulseOffset, cy - 34);
+            // Ikon panah kanan berdenyut
+            ctx.fillText('▶', cx + 54 + pulseOffset, cy - 34);
+
+            // Teks petunjuk geser di bawah rumput
+            ctx.fillStyle = '#065F46';
+            ctx.fillText('👆 Geser ke kiri atau kanan', cx, cy);
+
+            ctx.restore();
+        }
+
+        function drawPlayer() {
+            const cx = player.x + player.width / 2;
+            const cy = player.y + player.height / 2;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            // Efek miring dinamis mengikuti kecepatan geseran
+            const tilt = Math.max(-0.18, Math.min(0.18, player.vx * 0.00025));
+            ctx.rotate(tilt);
+
+            // Bayangan di rumput
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+            ctx.beginPath();
+            ctx.ellipse(0, player.height / 2 + 2, 33, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Badan / Kaos Hijau Segar
+            ctx.fillStyle = '#10B981';
+            ctx.beginPath();
+            ctx.roundRect(-24, 8, 48, 35, [16, 16, 8, 8]);
+            ctx.fill();
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = '#047857';
+            ctx.stroke();
+
+            // Tangan Kiri & Kanan
+            ctx.strokeStyle = '#FDBA74';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-22, 16);
+            ctx.lineTo(-34, 2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(22, 16);
+            ctx.lineTo(34, 2);
+            ctx.stroke();
+
+            // Kepala Karakter
+            ctx.fillStyle = player.expression === 'sick' ? '#BEF264' : '#FED7AA';
+            ctx.beginPath();
+            ctx.arc(0, -12, 26, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = player.expression === 'sick' ? '#65A30D' : '#F97316';
+            ctx.stroke();
+
+            // Rambut Cokelat
+            ctx.fillStyle = '#451A03';
+            ctx.beginPath();
+            ctx.arc(0, -18, 25, Math.PI, Math.PI * 2);
+            ctx.quadraticCurveTo(10, -25, 0, -22);
+            ctx.quadraticCurveTo(-12, -26, -24, -18);
+            ctx.fill();
+
+            // Pipi Merona
+            ctx.fillStyle = player.expression === 'sick' ? 'rgba(101, 163, 13, 0.35)' : 'rgba(244, 63, 94, 0.35)';
+            ctx.beginPath();
+            ctx.arc(-14, -7, 4.5, 0, Math.PI * 2);
+            ctx.arc(14, -7, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Ekspresi Mata & Mulut
+            if (player.expression === 'sick') {
+                ctx.lineWidth = 2.5;
+                ctx.strokeStyle = '#1E293B';
+                ctx.beginPath();
+                ctx.moveTo(-12, -17); ctx.lineTo(-6, -11);
+                ctx.moveTo(-6, -17); ctx.lineTo(-12, -11);
+                ctx.moveTo(6, -17); ctx.lineTo(12, -11);
+                ctx.moveTo(12, -17); ctx.lineTo(6, -11);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(-9, 0);
+                ctx.quadraticCurveTo(-4, -5, 0, 0);
+                ctx.quadraticCurveTo(4, 5, 9, 0);
+                ctx.stroke();
+            } else {
+                ctx.fillStyle = '#1E293B';
+                ctx.beginPath();
+                ctx.arc(-9, -14, 3.5, 0, Math.PI * 2);
+                ctx.arc(9, -14, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.arc(-10, -15, 1.3, 0, Math.PI * 2);
+                ctx.arc(8, -15, 1.3, 0, Math.PI * 2);
+                ctx.fill();
+
+                const nearbyFood = fallingFoods.some(f => Math.abs(f.x - cx) < 58 && f.y > player.y - 95);
+                if (player.expression === 'yum' || nearbyFood) {
+                    ctx.fillStyle = '#BE123C';
+                    ctx.beginPath();
+                    ctx.arc(0, -4, 9.5, 0, Math.PI);
+                    ctx.fill();
+                } else {
+                    ctx.strokeStyle = '#1E293B';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.arc(0, -6, 7, 0.15 * Math.PI, 0.85 * Math.PI);
+                    ctx.stroke();
+                }
+            }
+
+            ctx.restore();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Gambar Awan
+            clouds.forEach(c => drawCloud(c.x, c.y, c.scale));
+
+            // Gambar Lantai Rumput Hijau
+            const floorHeight = 28;
+            ctx.fillStyle = '#86EFAC';
+            ctx.fillRect(0, canvas.height - floorHeight, canvas.width, floorHeight);
+            ctx.fillStyle = '#4ADE80';
+            ctx.fillRect(0, canvas.height - floorHeight, canvas.width, 5);
+
+            // Gambar Petunjuk Geser Halus di Awal Permainan
+            if (gameState === 'PLAYING') {
+                drawSwipeHint();
+            }
+
+            // Gambar Karakter Pemain
+            drawPlayer();
+
+            // Gambar Makanan yang Jatuh
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            fallingFoods.forEach(f => {
+                ctx.save();
+                ctx.translate(f.x, f.y);
+                ctx.rotate(f.rotation);
+                ctx.font = `${f.size}px Arial`;
+                ctx.fillText(f.emoji, 0, 2);
+                ctx.restore();
+            });
+
+            // Gambar Partikel Efek
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, p.alpha);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // Gambar Teks Skor Melayang (+10 / -10)
+            floatingTexts.forEach(ft => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, ft.alpha);
+                ctx.font = '800 18px Fredoka, sans-serif';
+                ctx.fillStyle = ft.color;
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 4;
+                ctx.strokeText(ft.text, ft.x, ft.y);
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            });
+        }
+
+        // --- 11. GAME LOOP UTAMA ---
+        function gameLoop(timestamp) {
+            const dt = Math.min(0.05, (timestamp - lastTime) / 1000);
+            lastTime = timestamp;
+
+            update(dt);
+            draw();
+
+            if (gameState === 'PLAYING') {
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // --- 12. KONTROL GESER MURNI (RELATIF DRAG/SWIPE AGAR JARI TIDAK MENUTUPI KARAKTER) ---
+        let isPointerDown = false;
+        let pointerStartX = 0;
+        let playerStartX = 0;
+
+        function startSwipe(clientX) {
+            if (gameState !== 'PLAYING') return;
+            isPointerDown = true;
+            pointerStartX = clientX;
+            playerStartX = player.targetX;
+        }
+
+        function moveSwipe(clientX) {
+            if (!isPointerDown || gameState !== 'PLAYING') return;
+            const deltaX = clientX - pointerStartX;
+            if (Math.abs(deltaX) > 4) {
+                hasUserSwiped = true;
+            }
+            const newTargetX = playerStartX + deltaX;
+            player.targetX = Math.max(4, Math.min(canvas.width - player.width - 4, newTargetX));
+        }
+
+        function endSwipe() {
+            isPointerDown = false;
+        }
+
+        // Pointer Events modern (mendukung sentuhan jari & mouse secara seragam)
+        canvas.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            if (canvas.setPointerCapture) {
+                try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+            }
+            startSwipe(e.clientX);
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (!isPointerDown) return;
+            e.preventDefault();
+            moveSwipe(e.clientX);
+        });
+
+        canvas.addEventListener('pointerup', (e) => {
+            if (canvas.releasePointerCapture) {
+                try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+            }
+            endSwipe();
+        });
+
+        canvas.addEventListener('pointercancel', endSwipe);
+
+        // Fallback Touch Events untuk peramban mobile lama
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) {
+                startSwipe(e.touches[0].clientX);
+            }
+        }, { passive: true });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (isPointerDown && e.touches.length > 0) {
+                moveSwipe(e.touches[0].clientX);
+            }
+        }, { passive: true });
+
+        canvas.addEventListener('touchend', endSwipe);
+
+        // Dukungan Keyboard Opsional di latar belakang untuk pengguna laptop
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                keys.left = true;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                keys.right = true;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                keys.left = false;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                keys.right = false;
+            }
+        });
+
+        // Event Tombol Mulai & Main Lagi
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        // Inisialisasi awal saat halaman selesai dimuat
+        window.onload = function () {
+            hudHighScoreDisplay.textContent = highScore;
+            resizeCanvas();
+            initClouds();
+            draw();
+        };
+    </script>
 </body>
 </html>
+```
